@@ -1,31 +1,38 @@
 ---
-# tasks file for ansible-role-docker
+# tasks file for docker
+- name: Installing Docker (moby-engine) on Fedora
+  hosts: all
+  user: root
+  become: yes
 
-# toDo:
-  # Verify function
+  tasks:
+  - name: Installing Docker (moby-engine) & docker-compose on Fedora
+    dnf:
+      name: 
+      - moby-engine
+      - docker-compose
 
-- name: Enabling docker-ce repository
-  copy:
-    src: docker-ce.repo
-    dest: /etc/yum.repos.d/
-    owner: root
-    group: root
-    mode: 0644
+  - name: Enable Docker service
+    systemd: 
+      name: docker
+      enabled: yes
 
-- name: Install docker-ce
-  dnf:
-    name:
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io 
-    state: present
+  - name: Check for existing cgroups configuration
+    shell: grep "systemd.unified_cgroup_hierarchy=0" /etc/default/grub
+    register: cgroups_grep
+    failed_when: "cgroups_grep.rc == 2"
 
-- name: Enable docker daemon
-  systemd:
-    enabled: yes
-    name: docker
+  - name: Updating GRUB to enable cgroups v1
+    lineinfile:
+      state: present
+      dest: /etc/default/grub
+      backrefs: yes
+      regexp: '^(GRUB_CMDLINE_LINUX=(?!.* audit)\"[^\"]+)(\".*)'
+      line: '\1 systemd.unified_cgroup_hierarchy=0\2'
+    when: cgroups_grep.stdout == ""
 
-- name: Start docker daemon
-  systemd:
-    state: started
-    name: docker
+  - name: Rebuild GRUB
+    command: grub2-mkconfig
+
+  - name: Restart server
+    reboot: 
