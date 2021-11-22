@@ -30,3 +30,18 @@
 
 - name: Restart server
   reboot: 
+
+
+- name: Create directory for building selinux-dockersock
+  file:
+    path: /data/selinux-dockersock
+    state: directory
+
+- name: Clone repo for selinux-dockersock
+  git:
+    repo: https://github.com/dpw/selinux-dockersock.git
+    dest: /data/selinux-dockersock
+    clone: yes
+
+- name: Build selinux-dockersock
+  shell: cd /data/selinux-dockersock && make
